@@ -50,6 +50,14 @@
 
 ;; lsp-pyright
 (package! lsp-pyright)
+(package! python-black)
+(package! py-isort)
+(package! python-pytest)
+
+;; javascript/react
+(package! prettier-js)
+(package! emmet-mode)
+(package! add-node-modules-path)
 
 ;; jupyter
 (package! jupyter)

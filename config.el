@@ -43,29 +43,150 @@
 (setq org-directory "~/org/")
 (setq org-roam-directory "~/org-roam")
 (after! org-roam
-	(setq org-roam-capture-templates
-	      '(("d" "default" plain ;; defines d shortcut for a default 
-		 "%?"
-		 :target (file+head "${slug}.org" "#+title: ${title}\n#+filetages: :study:\n\n") ;; default header content
-		 :unnarrowed t)
-		("c" "concept" plain
-		 "* Definition\n\n%?\n\n* Use Cases\n\n* Examples\n\n* Related Concepts\n\n* Sources\n"
-		 :target (file+head "${slug}.org" "#+title: ${title}\n#+filetags: :study:concept:\n\n")
-		 :unnarrowed t))))
+  (setq org-roam-capture-templates
+	'(("d" "default" plain ;; defines d shortcut for a default
+	   "%?"
+	   :target (file+head "${slug}.org" "#+title: ${title}\n#+filetags: :study:\n\n") ;; default header content
+	   :unnarrowed t)
+	  ("c" "concept" plain
+	   "* Definition\n\n%?\n\n* Use Cases\n\n* Examples\n\n* Related Concepts\n\n* Sources\n"
+	   :target (file+head "${slug}.org" "#+title: ${title}\n#+filetags: :study:concept:\n\n")
+	   :unnarrowed t))))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;              PYTHON                 ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; python interpreter
-(setq python-shell-interpreter "~/venvs/dev/bin/python")
-(after! lsp-pyright
-  (setq lsp-pyright-python-executable-cmd "~/venvs/dev/bin/python")
-  )
-(setq pyvenv-workon (expand-file-name "~/venvs/"))
-(after! python
-	(pyvenv-activate "~/venvs/dev"))
+(use-package! python
+  :config
+  ;; python interpreter
+  (setq python-shell-interpreter "python3")
 
+  ;; black auto format on save
+  (add-hook 'python-mode-hook'
+            (lambda ()
+              (add-hook 'before-save-hook 'lsp-format-buffer nil t)))
+
+  (setq python-shell-virtualenv-root "~/venvs/")
+
+  ;; pytest integration
+  (map! :map python-mode-map
+        :localleader
+        "t" #'python-pytest))
+
+;; LSP Configuration for Python
+(after! lsp-pyright
+  (setq lsp-pyright-langserver-command "pyright")
+  (setq lsp-pyright-multi-root nil)
+  (setq lsp-pyright-auto-import-completions t)
+  (setq lsp-pyright-auto-search-paths t))
+
+;; Configure Black Formatter
+(use-package! python-black
+  :after python
+  :hook (python-mode . python-black-on-save-mode))
+
+;; Redundant stopping of company issues
+(when (fboundp 'company-mode)
+  (global-company-mode -1))
+(remove-hook 'after-init-hook #'global-company-mode)
+
+;; === Corfu Configuration ===
+(after! corfu
+  (setq corfu-auto t                 ;; Auto popup
+        corfu-cycle t               ;; Cycle through suggestions
+        corfu-popupinfo-mode nil   ;; Turn off doc popups to avoid black box
+        corfu-preselect 'prompt
+        corfu-quit-no-match 'separator)  ;; No flicker on no match
+
+  ;; Optional: turn off doc popups explicitly
+  (corfu-popupinfo-mode -1))
+
+;; Use orderless for more flexible matching
+(after! orderless
+  (setq completion-styles '(orderless)
+        completion-category-defaults nil
+        completion-category-overrides '((file (styles partial-completion)))))
+
+;; Configure isort to sort imports alphabetically
+(use-package! py-isort
+  :after python
+  :hook (python-mode . (lambda ()
+                         (add-hook 'before-save-hook 'py-isort-before-save nil t))
+                     )
+  )
+
+
+;; JavaScript/React-Config
+(use-package! js2-mode
+  :mode "\\.js\\'"
+  :config
+  (setq js2-basic-offset 2
+        js2-bounce-indent-p nil
+        js2-mode-show-parse-errors nil
+        js2-mode-show-strict-warnings nil))
+
+;; React/JSX Configuration
+(use-package! rjsx-mode
+  :mode "\\.jsx\\'"
+  :config
+  (setq sgml-basic-offset 2))
+
+;; TypeScript Config
+(use-package! typescript-mode
+  :mode "\\.ts\\'"
+  :config
+  (setq typescript-indent-level 2))
+
+;; TSX (TypeScript React) Configuration
+(use-package! tsx-mode
+  :mode "\\.tsx\\'"
+  :config
+  (add-hook 'js2-mode-hook 'prettier-js-mode)
+  (add-hook 'rjsx-mode-hook 'prettier-js-mode)
+  (add-hook 'typescript-mode-hook 'prettier-js-mode)
+  (add-hook 'web-mode-hook 'prettier-js-mode))
+
+;; LSP for JavaScript/TypeScript
+(after! lsp-mode
+  (remove-hook 'lsp-configure-hook #'lsp--auto-configure)
+  (defun lsp--auto-configure () "Override: disable unwanted company-mode setup." nil)
+  (setq lsp-javascript-suggest-auto-imports t
+        lsp-typescript-suggest-auto-imports t
+        lsp-completion-provider :capf ;; Keeps it minimal and reliable
+        lsp-completion-use-company nil))
+
+
+;; Emmet for HTML/JSX expansion
+(use-package! emmet-mode
+  :hook ((web-mode . emmet-mode)
+         (rjsx-mode . emmet-mode)
+         (html-mode . emmet-mode)))
 ;; Projects
 (after! projectile
   (setq projectile-project-search-path '("~/projects")))
 
+;; Short Cuts
+(map! :leader
+      :desc "Format buffer" "c f" #'lsp-format-buffer
+      :desc "Format region" "c F" #'lsp-format-region
+      :desc "Organize imports" "c o" #'lsp-organize-imports)
+
+;; Python-specific bindings
+(map! :map python-mode-map
+      :localleader
+      "f" #'python-black-buffer
+      "i" #'py-isort-buffer
+      "r" #'python-shell-send-region
+      "b" #'python-shell-send-buffer)
+
+;; JavaScript-specific bindings
+(map! :map js2-mode-map
+      :localleader
+      "f" #'prettier-js
+      "r" #'nodejs-repl-send-region)
 ;; Whenever you reconfigure a package, make sure to wrap your config in an
 ;; `after!' block, otherwise Doom's defaults may override your settings. E.g.
 ;;
