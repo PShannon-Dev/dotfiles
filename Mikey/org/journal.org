@@ -1,0 +1,10 @@
+
+* 2025
+** 2025-11 November
+*** 2025-11-25 Tuesday
+**** [2025-11-25 Tue 01:55]
+* Arch Maintenance
+** systemctl --failed
+        this fill check if any systemd services have failed
+** journalctl -b
+- Looks for errors
